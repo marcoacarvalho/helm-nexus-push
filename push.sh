@@ -77,7 +77,7 @@ else
 declare REPO_AUTH_FILE="$(helm home)/repository/auth.$REPO"
 fi
 
-if [[ -z "$REPO_URL" ]]; then
+if [[ -z "${REPO_URL:-}" ]]; then
     echo "Invalid repo specified!  Must specify one of these repos..."
     helm repo list
     echo "---"
@@ -91,10 +91,10 @@ declare CHART
 
 case "$2" in
     login)
-        if [[ -z "$USERNAME" ]]; then
+        if [[ -z "${USERNAME:-}" ]]; then
             read -p "Username: " USERNAME
         fi
-        if [[ -z "$PASSWORD" ]]; then
+        if [[ -z "${PASSWORD:-}" ]]; then
             read -s -p "Password: " PASSWORD
             echo
         fi
@@ -107,15 +107,15 @@ case "$2" in
         CMD=push
         CHART=$2
 
-        if [[ -z "$USERNAME" ]] || [[ -z "$PASSWORD" ]]; then
-            if [[ -f "$REPO_AUTH_FILE" ]]; then
+        if [[ -z "${USERNAME:-}" ]] || [[ -z "${PASSWORD:-}" ]]; then
+            if [[ -f "${REPO_AUTH_FILE:-}" ]]; then
                 echo "Using cached login creds..."
                 AUTH="$(cat $REPO_AUTH_FILE)"
             else
-                if [[ -z "$USERNAME" ]]; then
+                if [[ -z "${USERNAME:-}" ]]; then
                     read -p "Username: " USERNAME
                 fi
-                if [[ -z "$PASSWORD" ]]; then
+                if [[ -z "${PASSWORD:-}" ]]; then
                     read -s -p "Password: " PASSWORD
                     echo
                 fi
@@ -125,15 +125,27 @@ case "$2" in
 		AUTH="$USERNAME:$PASSWORD"
         fi
 
-        if [[ -d "$CHART" ]]; then
+        if [[ -d "${CHART:-}" ]]; then
             CHART_PACKAGE="$(helm package "$CHART" | cut -d":" -f2 | tr -d '[:space:]')"
         else
             CHART_PACKAGE="$CHART"
         fi
 
-        echo "Pushing $CHART to repo $REPO_URL..."
+        echo "Pushing $CHART to repo $REPO_URL"
         curl -is -u "$AUTH" "$REPO_URL" --upload-file "$CHART_PACKAGE" | indent
-        echo "Done"
+
+        NEXUS_RESPONSE=$(curl -is -u "$AUTH" "$REPO_URL" --upload-file "$CHART_PACKAGE" | indent)
+        # Generate error code if 400-505
+        if $(echo $nexus_response | grep -q 'HTTP/1.1 400'); then
+          echo "${CHART_PACKAGE} already exists in ${REPO_URL}"
+          echo $nexus_response | grep 'HTTP/1.1 400'
+          exit 2
+        elif $(echo $nexus_response | grep 'HTTP/1.1' | egrep -q [401-505]); then
+          echo $nexus_response | egrep 'HTTP/1.1 [401-505]'
+          exit 1
+        else
+          echo "${CHART_PACKAGE} uploaded successfully"
+        fi         
         ;;
 esac
 
