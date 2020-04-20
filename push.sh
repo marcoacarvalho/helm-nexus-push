@@ -135,17 +135,18 @@ case "$2" in
         curl -is -u "$AUTH" "$REPO_URL" --upload-file "$CHART_PACKAGE" | indent
 
         NEXUS_RESPONSE=$(curl -is -u "$AUTH" "$REPO_URL" --upload-file "$CHART_PACKAGE" | indent)
+	echo $NEXUS_RESPONSE
         # Generate error code if 400-505
-        if $(echo $NEXUS_RESPONSE | grep -q 'HTTP/1.1 400'); then
-          echo "${CHART_PACKAGE} already exists in ${REPO_URL}"
-          echo $NEXUS_RESPONSE | grep 'HTTP/1.1 400'
-          exit 2
-        elif $(echo $NEXUS_RESPONSE | grep 'HTTP/1.1' | egrep -q [401-505]); then
-          echo $NEXUS_RESPONSE | egrep 'HTTP/1.1 [401-505]'
-          exit 1
-        else
-          echo "${CHART_PACKAGE} uploaded successfully"
-        fi         
+#       if $(echo $NEXUS_RESPONSE | grep -q 'HTTP/1.1 400'); then
+#         echo "${CHART_PACKAGE} already exists in ${REPO_URL}"
+#         echo $NEXUS_RESPONSE | grep 'HTTP/1.1 400'
+#         exit 2
+#       elif $(echo $NEXUS_RESPONSE | grep 'HTTP/1.1' | egrep -q [401-505]); then
+#         echo $NEXUS_RESPONSE | egrep 'HTTP/1.1 [401-505]'
+#         exit 1
+#       else
+#         echo "${CHART_PACKAGE} uploaded successfully"
+#       fi         
         ;;
 esac
 
